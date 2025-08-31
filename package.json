@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@langchain/cohere": "^0.3.4",
     "@langchain/community": "^0.3.53",
     "@langchain/core": "^0.3.72",
     "@langchain/openai": "^0.6.9",
