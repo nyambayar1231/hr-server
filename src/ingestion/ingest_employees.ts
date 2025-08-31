@@ -1,6 +1,6 @@
 import XLSX from 'xlsx';
 import { Document } from '@langchain/core/documents';
-import { vectorStore } from '../pg';
+import { getVectorStore } from '../pg';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -38,6 +38,7 @@ export async function ingestEmployeeData() {
     }
 
     // Await the addition of all documents
+    const vectorStore = await getVectorStore();
     await vectorStore.addDocuments(documents);
     console.log(
       `Successfully ingested ${documents.length} employee documents.`,

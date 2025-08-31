@@ -26,4 +26,8 @@ const config = {
   distanceStrategy: 'cosine' as DistanceStrategy,
 };
 
-export const vectorStore = await PGVectorStore.initialize(embeddings, config);
+export async function getVectorStore() {
+  return await PGVectorStore.initialize(embeddings, config);
+}
+
+export const vectorStore = getVectorStore();
