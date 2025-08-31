@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
 
 import dotenv from 'dotenv';
-import { retriever, saveParentDocuments } from '../storage/retriever';
+import { saveParentDocuments, createRetriever } from '../storage/retriever';
 
 dotenv.config();
 
@@ -11,6 +11,8 @@ const policiesDirectory = path.join(__dirname, '../../policies');
 
 async function main() {
   console.log('Starting policy ingestion...\n');
+
+  const retriever = await createRetriever();
 
   try {
     // Load existing parent documents
