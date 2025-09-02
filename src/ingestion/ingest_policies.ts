@@ -126,27 +126,52 @@ async function main() {
   }
 }
 
+/**
+ * Load a PDF and clean headers/footers including embedded page numbers.
+ */
 async function loadPDF(filePath: string): Promise<Document[]> {
   try {
     const loader = new PDFLoader(filePath, {
-      splitPages: false,
+      splitPages: true, // process per page
     });
-    const docs = await loader.load();
 
-    // TO DO: Probably will improve this. This is just for a test purpose!!!
-    const unwantedTextPattern =
-      /(М-Си-Эс Групп|ХӨДӨЛМӨРИЙН ДОТООД ЖУРАМ|Код|HR-0100R|Дотоод хэрэгцээнд \/ Office use only|Хуудас \d+ \/ \d+)/g;
+    const docs: Document[] = await loader.load();
 
-    const cleanedDocs = docs.map((doc) => {
-      let cleanedContent = doc.pageContent
-        .replace(unwantedTextPattern, '')
-        .trim();
+    // Split each page into lines
+    const pageLines: string[][] = docs.map((doc) =>
+      doc.pageContent.split("\n").map((l) => l.trim()).filter(Boolean)
+    );
 
-      cleanedContent = cleanedContent.replace(/\n\s*\n/g, '\n\n');
+    // Detect common header ignoring embedded page numbers
+    const headerLines: string[] = detectCommonHeader(pageLines);
+
+    const cleanedDocs: Document[] = docs.map((doc, idx) => {
+      let lines = [...pageLines[idx]];
+
+      // Remove multi-line header
+      if (headerLines.length > 0) {
+        let removeCount = 0;
+        for (let i = 0; i < headerLines.length; i++) {
+          const lineWithoutPage = removeEmbeddedPageNumbers(lines[i]);
+          if (lineWithoutPage === headerLines[i]) {
+            removeCount++;
+          }
+        }
+        lines = lines.slice(removeCount);
+      }
+
+      // Remove embedded page numbers in remaining lines
+      lines = lines.map(removeEmbeddedPageNumbers);
+
+      // Remove footer if it looks like page number only
+      const lastLine = lines[lines.length - 1];
+      if (isPageNumberOnly(lastLine)) {
+        lines = lines.slice(0, -1);
+      }
 
       return {
         ...doc,
-        pageContent: cleanedContent,
+        pageContent: lines.join(" ").replace(/\s+/g, " ").trim(),
       };
     });
 
@@ -155,6 +180,42 @@ async function loadPDF(filePath: string): Promise<Document[]> {
     console.error(`Error loading PDF ${filePath}:`, error.message);
     return [];
   }
+}
+
+/**
+ * Detect common multi-line header ignoring embedded page numbers
+ */
+function detectCommonHeader(pages: string[][]): string[] {
+  if (pages.length === 0) return [];
+
+  const minLines = Math.min(...pages.map((p) => p.length));
+  const header: string[] = [];
+
+  for (let i = 0; i < minLines; i++) {
+    const lineSet = new Set(pages.map((p) => removeEmbeddedPageNumbers(p[i])));
+    if (lineSet.size === 1) {
+      header.push([...lineSet][0]); // keep the common static text
+    } else {
+      break;
+    }
+  }
+  return header;
+}
+
+/**
+ * Remove Mongolian or English page numbers from a line
+ */
+function removeEmbeddedPageNumbers(line: string): string {
+  if (!line) return line;
+  return line.replace(/(Хуудас\s*\d+\s*\/\s*\d+|Page\s*\d+\s*\/\s*\d+)/gi, '').trim();
+}
+
+/**
+ * Detect if the line contains only a page number
+ */
+function isPageNumberOnly(line: string | undefined): boolean {
+  if (!line) return false;
+  return /^(Хуудас\s*\d+\s*\/\s*\d+|Page\s*\d+\s*\/\s*\d+)$/i.test(line.trim());
 }
 
 main().catch(console.error);
