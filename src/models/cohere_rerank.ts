@@ -1,9 +1,10 @@
 import { CohereRerank } from '@langchain/cohere';
-import dotenv from 'dotenv';
-dotenv.config();
+import { ConfigurationService } from '../config/configuration.service';
 
-export const cohereRerank = new CohereRerank({
-  apiKey: process.env.COHERE_API_KEY!,
-  topN: 3, // Default
-  model: 'rerank-multilingual-v3.0',
-});
+export function createCohereRerank(configService: ConfigurationService) {
+  return new CohereRerank({
+    apiKey: configService.cohereApiKey,
+    topN: configService.rerankTopN,
+    model: 'rerank-multilingual-v3.0',
+  });
+}

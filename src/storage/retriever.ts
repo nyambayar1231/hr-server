@@ -2,26 +2,24 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 import { InMemoryStore } from '@langchain/core/stores';
-import { getVectorStore } from '../pg';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { ParentDocumentRetriever } from 'langchain/retrievers/parent_document';
+import { VectorStoreService } from '../services/vector-store.service';
 // Path to store the parent documents
-const STORE_FILE_PATH = path.join(
-  __dirname,
-  '../../data/parent_documents.json',
-);
+const STORE_FILE_PATH = path.join(__dirname, '../data/parent_documents.json');
 
 // Create In memory store
 const byteStore = new InMemoryStore<Uint8Array>();
 
-export async function createRetriever() {
-  const vectorStore = await getVectorStore();
+export async function createRetriever(vectorStoreService: VectorStoreService) {
+  const vectorStore = await vectorStoreService.getVectorStore();
+
   return new ParentDocumentRetriever({
     vectorstore: vectorStore,
     byteStore,
     parentSplitter: new RecursiveCharacterTextSplitter({
-      chunkOverlap: 0.15 * 800,
-      chunkSize: 800,
+      chunkOverlap: 2000,
+      chunkSize: 400,
     }),
 
     childSplitter: new RecursiveCharacterTextSplitter({
@@ -32,8 +30,6 @@ export async function createRetriever() {
     parentK: 5,
   });
 }
-
-export const retriever = createRetriever();
 
 export async function saveParentDocuments() {
   try {

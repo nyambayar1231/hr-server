@@ -1,11 +1,15 @@
 // import { ChatGroq } from '@langchain/groq';
 import { ChatOpenAI } from '@langchain/openai';
-import dotenv from 'dotenv';
-dotenv.config();
+import { ConfigurationService } from '../config/configuration.service';
 
 // export const llm = new ChatGroq({
 //   model: 'llama-3.3-70b-versatile',
 //   temperature: 0,
 // });
 
-export const llm = new ChatOpenAI({ model: 'gpt-4', temperature: 0 });
+export function createLLM(configService: ConfigurationService) {
+  return new ChatOpenAI({
+    model: configService.modelName,
+    temperature: configService.temperature,
+  });
+}

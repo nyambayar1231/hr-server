@@ -1,25 +1,50 @@
 import path from 'path';
 import { promises as fs } from 'fs';
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
+import { InMemoryStore } from '@langchain/core/stores';
+import { Document } from '@langchain/core/documents';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { ParentDocumentRetriever } from 'langchain/retrievers/parent_document';
 
 import dotenv from 'dotenv';
-import { saveParentDocuments, createRetriever } from '../storage/retriever';
+import { loadParentDocuments, saveParentDocuments } from '../storage/retriever';
+import { createVectorStoreInstance } from '../utils/vector-store-utils';
 
 dotenv.config();
 
-const policiesDirectory = path.join(__dirname, '../../policies');
+const policiesDirectory = path.join(__dirname, '../data/policies');
+
+async function createStandaloneRetriever(): Promise<ParentDocumentRetriever> {
+  const vectorStore = await createVectorStoreInstance();
+  const byteStore = new InMemoryStore<Uint8Array>();
+
+  return new ParentDocumentRetriever({
+    vectorstore: vectorStore,
+    byteStore,
+    parentSplitter: new RecursiveCharacterTextSplitter({
+      chunkOverlap: 400,
+      chunkSize: 2000,
+    }),
+    childSplitter: new RecursiveCharacterTextSplitter({
+      chunkOverlap: 0.15 * 200,
+      chunkSize: 200,
+    }),
+    childK: 20,
+    parentK: 5,
+  });
+}
 
 async function main() {
   console.log('Starting policy ingestion...\n');
 
-  const retriever = await createRetriever();
+  const retriever = await createStandaloneRetriever();
 
   try {
     // Load existing parent documents
     console.log('Loading existing parent documents...');
-    // const existingCount = await loadParentDocuments();
+    const existingCount = await loadParentDocuments();
+    console.log(`Existing document counts: ${existingCount}`);
 
-    // Process PDF files
     const filenames = await fs.readdir(policiesDirectory);
     const pdfFilenames = filenames.filter((f) => f.endsWith('.pdf'));
 
@@ -101,11 +126,31 @@ async function main() {
   }
 }
 
-async function loadPDF(filePath: string) {
+async function loadPDF(filePath: string): Promise<Document[]> {
   try {
-    const loader = new PDFLoader(filePath);
+    const loader = new PDFLoader(filePath, {
+      splitPages: false,
+    });
     const docs = await loader.load();
-    return docs;
+
+    // TO DO: Probably will improve this. This is just for a test purpose!!!
+    const unwantedTextPattern =
+      /(М-Си-Эс Групп|ХӨДӨЛМӨРИЙН ДОТООД ЖУРАМ|Код|HR-0100R|Дотоод хэрэгцээнд \/ Office use only|Хуудас \d+ \/ \d+)/g;
+
+    const cleanedDocs = docs.map((doc) => {
+      let cleanedContent = doc.pageContent
+        .replace(unwantedTextPattern, '')
+        .trim();
+
+      cleanedContent = cleanedContent.replace(/\n\s*\n/g, '\n\n');
+
+      return {
+        ...doc,
+        pageContent: cleanedContent,
+      };
+    });
+
+    return cleanedDocs;
   } catch (error: any) {
     console.error(`Error loading PDF ${filePath}:`, error.message);
     return [];

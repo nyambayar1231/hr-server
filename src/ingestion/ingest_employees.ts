@@ -1,7 +1,8 @@
 import XLSX from 'xlsx';
 import { Document } from '@langchain/core/documents';
-import { getVectorStore } from '../pg';
 import dotenv from 'dotenv';
+import path from 'path';
+import { createVectorStoreInstance } from '../utils/vector-store-utils';
 dotenv.config();
 
 interface Employee {
@@ -14,11 +15,15 @@ interface Employee {
   Email: string;
 }
 
-const excelFilePath = '../data/employees/employee_data.xlsx';
-
 export async function ingestEmployeeData() {
   try {
-    const workbook = XLSX.readFile(excelFilePath);
+    const employeeFilePath = path.join(
+      __dirname,
+      '../data/employees/employee_data.xlsx',
+    );
+
+    const workbook = XLSX.readFile(employeeFilePath);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     const employees = XLSX.utils.sheet_to_json(
       workbook.Sheets['Employees'],
     ) as Employee[];
@@ -37,8 +42,7 @@ export async function ingestEmployeeData() {
       });
     }
 
-    // Await the addition of all documents
-    const vectorStore = await getVectorStore();
+    const vectorStore = await createVectorStoreInstance();
     await vectorStore.addDocuments(documents);
     console.log(
       `Successfully ingested ${documents.length} employee documents.`,
