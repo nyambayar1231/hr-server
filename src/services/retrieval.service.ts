@@ -35,6 +35,8 @@ export class RetrievalService {
   ): Promise<RetrievalResult> {
     console.log('\n Starting retrieval process...');
 
+    const normalizedEmail = userEmail.toLowerCase().trim();
+
     const vectorStore = await this.vectorStoreService.getVectorStore();
 
     const retriever = await createRetriever();

@@ -17,6 +17,7 @@ export class AppController {
     @Headers() headers: Record<string, string>,
   ) {
     const userEmail = headers['x-user-email'];
+    console.log(userEmail);
 
     return this.appService.chat(body.message, userEmail);
   }

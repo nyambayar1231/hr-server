@@ -12,7 +12,6 @@ import {
 
 dotenv.config();
 
-// Determine the correct path based on whether we're running from dist or src
 const isProduction = __dirname.includes('dist');
 const policiesDirectory = isProduction
   ? path.join(__dirname, '../../src/data/policies')
