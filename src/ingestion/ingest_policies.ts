@@ -203,5 +203,3 @@ function isPageNumberOnly(line: string | undefined): boolean {
   if (!line) return false;
   return /^(Хуудас\s*\d+\s*\/\s*\d+|Page\s*\d+\s*\/\s*\d+)$/i.test(line.trim());
 }
-
-// Do not auto-execute in server context. This function should be called explicitly

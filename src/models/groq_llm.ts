@@ -1,5 +1,6 @@
-// import { ChatGroq } from '@langchain/groq';
-import { ChatOpenAI } from '@langchain/openai';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+import { ChatGroq } from '@langchain/groq';
+// import { ChatOpenAI } from '@langchain/openai';
 import { ConfigurationService } from '../config/configuration.service';
 
 // export const llm = new ChatGroq({
@@ -8,7 +9,13 @@ import { ConfigurationService } from '../config/configuration.service';
 // });
 
 export function createLLM(configService: ConfigurationService) {
-  return new ChatOpenAI({
+  // return new ChatOpenAI({
+  //   model: configService.modelName,
+  //   temperature: configService.temperature,
+  // });
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return new ChatGroq({
     model: configService.modelName,
     temperature: configService.temperature,
   });

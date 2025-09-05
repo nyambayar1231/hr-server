@@ -19,8 +19,8 @@ export async function createRetriever() {
     vectorstore: vectorStore,
     byteStore,
     parentSplitter: new RecursiveCharacterTextSplitter({
-      chunkOverlap: 400,
-      chunkSize: 2000,
+      chunkOverlap: 200,
+      chunkSize: 1000,
     }),
     childSplitter: new RecursiveCharacterTextSplitter({
       chunkOverlap: 50,

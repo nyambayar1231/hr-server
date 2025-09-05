@@ -33,7 +33,7 @@ export const appConfig = registerAs(
     ai: {
       openaiApiKey: process.env.OPENAI_API_KEY!,
       cohereApiKey: process.env.COHERE_API_KEY!,
-      modelName: process.env.LLM_MODEL || 'gpt-4',
+      modelName: process.env.LLM_MODEL || 'llama-3.3-70b-versatile',
       temperature: parseFloat(process.env.LLM_TEMPERATURE || '0'),
     },
     retrieval: {

@@ -28,26 +28,26 @@ export class ConfigurationService {
 
   // Helper methods for common config access
   get openaiApiKey(): string {
-    return this.ai?.openaiApiKey!;
+    return this.ai?.openaiApiKey ?? '';
   }
 
   get cohereApiKey(): string {
-    return this.ai?.cohereApiKey!;
+    return this.ai?.cohereApiKey ?? '';
   }
 
   get modelName(): string {
-    return this.ai?.modelName!;
+    return this.ai?.modelName ?? '';
   }
 
   get temperature(): number {
-    return this.ai?.temperature!;
+    return this.ai?.temperature ?? 0;
   }
 
   get maxDocuments(): number {
-    return this.retrieval?.maxDocuments!;
+    return this.retrieval?.maxDocuments ?? 0;
   }
 
   get rerankTopN(): number {
-    return this.retrieval?.rerankTopN!;
+    return this.retrieval?.rerankTopN ?? 0;
   }
 }
