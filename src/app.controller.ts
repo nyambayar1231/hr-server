@@ -21,4 +21,14 @@ export class AppController {
 
     return this.appService.chat(body.message, userEmail);
   }
+
+  @Post('ingest/employees')
+  async ingestEmployees() {
+    return this.appService.ingestEmployees();
+  }
+
+  @Post('ingest/policies')
+  async ingestPolicies() {
+    return this.appService.ingestPolicies();
+  }
 }

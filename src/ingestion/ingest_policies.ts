@@ -17,7 +17,7 @@ const policiesDirectory = isProduction
   ? path.join(__dirname, '../../src/data/policies')
   : path.join(__dirname, '../data/policies');
 
-async function main() {
+export async function ingestPolicies(): Promise<void> {
   const retriever = await createRetriever();
 
   try {
@@ -204,4 +204,4 @@ function isPageNumberOnly(line: string | undefined): boolean {
   return /^(Хуудас\s*\d+\s*\/\s*\d+|Page\s*\d+\s*\/\s*\d+)$/i.test(line.trim());
 }
 
-main().catch(console.error);
+// Do not auto-execute in server context. This function should be called explicitly

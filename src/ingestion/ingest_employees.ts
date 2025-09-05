@@ -15,7 +15,7 @@ interface Employee {
   Email: string;
 }
 
-export async function ingestEmployeeData() {
+export async function ingestEmployeeData(): Promise<void> {
   try {
     const employeeFilePath = path.join(
       __dirname,
@@ -51,5 +51,4 @@ export async function ingestEmployeeData() {
     console.error('Error ingesting employee data:', error);
   }
 }
-
-void ingestEmployeeData();
+// Do not auto-execute in server context. This function should be called explicitly
