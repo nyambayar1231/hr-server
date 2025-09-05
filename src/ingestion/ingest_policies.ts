@@ -1,43 +1,25 @@
 import path from 'path';
 import { promises as fs } from 'fs';
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
-import { InMemoryStore } from '@langchain/core/stores';
 import { Document } from '@langchain/core/documents';
-import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { ParentDocumentRetriever } from 'langchain/retrievers/parent_document';
 
 import dotenv from 'dotenv';
-import { loadParentDocuments, saveParentDocuments } from '../storage/retriever';
-import { createVectorStoreInstance } from '../utils/vector-store-utils';
+import {
+  createRetriever,
+  loadParentDocuments,
+  saveParentDocuments,
+} from '../storage/retriever';
 
 dotenv.config();
 
-const policiesDirectory = path.join(__dirname, '../data/policies');
-
-async function createStandaloneRetriever(): Promise<ParentDocumentRetriever> {
-  const vectorStore = await createVectorStoreInstance();
-  const byteStore = new InMemoryStore<Uint8Array>();
-
-  return new ParentDocumentRetriever({
-    vectorstore: vectorStore,
-    byteStore,
-    parentSplitter: new RecursiveCharacterTextSplitter({
-      chunkOverlap: 400,
-      chunkSize: 2000,
-    }),
-    childSplitter: new RecursiveCharacterTextSplitter({
-      chunkOverlap: 0.15 * 200,
-      chunkSize: 200,
-    }),
-    childK: 20,
-    parentK: 5,
-  });
-}
+// Determine the correct path based on whether we're running from dist or src
+const isProduction = __dirname.includes('dist');
+const policiesDirectory = isProduction
+  ? path.join(__dirname, '../../src/data/policies')
+  : path.join(__dirname, '../data/policies');
 
 async function main() {
-  console.log('Starting policy ingestion...\n');
-
-  const retriever = await createStandaloneRetriever();
+  const retriever = await createRetriever();
 
   try {
     // Load existing parent documents
@@ -98,7 +80,7 @@ async function main() {
         } catch (error: any) {
           console.error(
             `Error processing batch ${Math.floor(j / batchSize) + 1}:`,
-            error.message,
+            error,
           );
         }
       }
@@ -139,7 +121,10 @@ async function loadPDF(filePath: string): Promise<Document[]> {
 
     // Split each page into lines
     const pageLines: string[][] = docs.map((doc) =>
-      doc.pageContent.split("\n").map((l) => l.trim()).filter(Boolean)
+      doc.pageContent
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean),
     );
 
     // Detect common header ignoring embedded page numbers
@@ -171,13 +156,13 @@ async function loadPDF(filePath: string): Promise<Document[]> {
 
       return {
         ...doc,
-        pageContent: lines.join(" ").replace(/\s+/g, " ").trim(),
+        pageContent: lines.join(' ').replace(/\s+/g, ' ').trim(),
       };
     });
 
     return cleanedDocs;
   } catch (error: any) {
-    console.error(`Error loading PDF ${filePath}:`, error.message);
+    console.error(`Error loading PDF ${filePath}:`, error);
     return [];
   }
 }
@@ -207,7 +192,9 @@ function detectCommonHeader(pages: string[][]): string[] {
  */
 function removeEmbeddedPageNumbers(line: string): string {
   if (!line) return line;
-  return line.replace(/(Хуудас\s*\d+\s*\/\s*\d+|Page\s*\d+\s*\/\s*\d+)/gi, '').trim();
+  return line
+    .replace(/(Хуудас\s*\d+\s*\/\s*\d+|Page\s*\d+\s*\/\s*\d+)/gi, '')
+    .trim();
 }
 
 /**

@@ -61,6 +61,8 @@ export class ChatOrchestratorService {
         state.userEmail,
       );
 
+    console.log(result);
+
     return {
       context: result.documents,
       queryType: result.queryType,

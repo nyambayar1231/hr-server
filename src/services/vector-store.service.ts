@@ -18,7 +18,7 @@ export class VectorStoreService {
     return this.vectorStore;
   }
 
-  async clearCache(): Promise<void> {
+  clearCache(): void {
     this.vectorStore = null;
   }
 }

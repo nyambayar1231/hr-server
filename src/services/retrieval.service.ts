@@ -36,14 +36,15 @@ export class RetrievalService {
     console.log('\n Starting retrieval process...');
 
     const vectorStore = await this.vectorStoreService.getVectorStore();
-    const retriever = await createRetriever(this.vectorStoreService);
+
+    const retriever = await createRetriever();
 
     // Load parent documents if not already loaded
     await loadParentDocuments();
 
     const queryType = this.queryClassifier.classifyQuery(question);
-    let allResults: Document[] = [];
-    let debugInfo = {
+    const allResults: Document[] = [];
+    const debugInfo = {
       queryType,
       personalDocsFound: 0,
       policyDocsFound: 0,

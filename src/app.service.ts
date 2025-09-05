@@ -9,14 +9,19 @@ export class AppService {
     return 'Hello World!';
   }
 
-  async chat(message: string): Promise<{
+  async chat(
+    message: string,
+    userEmail: string,
+  ): Promise<{
     response: string;
     timestamp: string;
     debugInfo?: any;
   }> {
-    return await this.chatOrchestrator.processChat(
-      message,
-      'tara.nelson@example.com',
-    );
+    try {
+      return await this.chatOrchestrator.processChat(message, userEmail);
+    } catch (error: any) {
+      console.log(error);
+      throw new Error(error);
+    }
   }
 }

@@ -4,26 +4,26 @@ import path from 'path';
 import { InMemoryStore } from '@langchain/core/stores';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { ParentDocumentRetriever } from 'langchain/retrievers/parent_document';
-import { VectorStoreService } from '../services/vector-store.service';
-// Path to store the parent documents
-const STORE_FILE_PATH = path.join(__dirname, '../data/parent_documents.json');
+import { createVectorStoreInstance } from '../utils/vector-store-utils';
+const STORE_FILE_PATH = path.join(
+  __dirname,
+  '../../src/data/parent_documents.json',
+);
 
-// Create In memory store
 const byteStore = new InMemoryStore<Uint8Array>();
 
-export async function createRetriever(vectorStoreService: VectorStoreService) {
-  const vectorStore = await vectorStoreService.getVectorStore();
+export async function createRetriever() {
+  const vectorStore = await createVectorStoreInstance();
 
   return new ParentDocumentRetriever({
     vectorstore: vectorStore,
     byteStore,
     parentSplitter: new RecursiveCharacterTextSplitter({
-      chunkOverlap: 2000,
-      chunkSize: 400,
+      chunkOverlap: 400,
+      chunkSize: 2000,
     }),
-
     childSplitter: new RecursiveCharacterTextSplitter({
-      chunkOverlap: 0.15 * 200,
+      chunkOverlap: 50,
       chunkSize: 200,
     }),
     childK: 20,
@@ -40,6 +40,7 @@ export async function saveParentDocuments() {
 
     // Extract all data from in-memory store
     for await (const key of byteStore.yieldKeys()) {
+      console.log({ key });
       const [value] = await byteStore.mget([key]);
       if (value) {
         data[key] = Buffer.from(value).toString('base64');
@@ -59,7 +60,7 @@ export async function saveParentDocuments() {
 export async function loadParentDocuments() {
   try {
     const fileContent = await fs.readFile(STORE_FILE_PATH, 'utf-8');
-    const data: Record<string, string> = JSON.parse(fileContent);
+    const data = JSON.parse(fileContent) as Record<string, string>;
 
     const keyValuePairs: [string, Uint8Array][] = Object.entries(data).map(
       ([key, base64Value]) => [
@@ -75,6 +76,8 @@ export async function loadParentDocuments() {
     }
     return 0;
   } catch (error: any) {
+    console.log(error);
+
     if (error.code === 'ENOENT') {
       console.log('No existing parent documents found (first run)');
     } else {

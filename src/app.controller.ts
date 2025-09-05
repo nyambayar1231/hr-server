@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Headers } from '@nestjs/common';
+
 import { AppService } from './app.service';
 
 @Controller()
@@ -11,7 +12,12 @@ export class AppController {
   }
 
   @Post('chat')
-  postChat(@Body() body: { message: string }) {
-    return this.appService.chat(body.message);
+  postChat(
+    @Body() body: { message: string },
+    @Headers() headers: Record<string, string>,
+  ) {
+    const userEmail = headers['x-user-email'];
+
+    return this.appService.chat(body.message, userEmail);
   }
 }

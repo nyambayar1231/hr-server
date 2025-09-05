@@ -17,10 +17,11 @@ interface Employee {
 
 export async function ingestEmployeeData() {
   try {
-    const employeeFilePath = path.join(
-      __dirname,
-      '../data/employees/employee_data.xlsx',
-    );
+    // Determine the correct path based on whether we're running from dist or src
+    const isProduction = __dirname.includes('dist');
+    const employeeFilePath = isProduction
+      ? path.join(__dirname, '../../src/data/employees/employee_data.xlsx')
+      : path.join(__dirname, '../data/employees/employee_data.xlsx');
 
     const workbook = XLSX.readFile(employeeFilePath);
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
