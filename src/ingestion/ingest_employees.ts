@@ -42,8 +42,6 @@ const employeesService = new EmployeeService(
 
 export async function ingestEmployeeData(): Promise<void> {
   try {
-    console.log('-'.repeat(100), { filePath: FILE_PATH });
-
     const workbook = XLSX.readFile(FILE_PATH);
     const raw = XLSX.utils.sheet_to_json<Record<string, any>>(
       workbook.Sheets['RAW'],
