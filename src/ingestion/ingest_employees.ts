@@ -26,7 +26,15 @@ function normalizeKeys<T extends Record<string, any>>(
   return normalized as Record<string, unknown>;
 }
 
-const FILE_PATH = path.join(__dirname, '../data/employees/employee_data.xlsx');
+// const FILE_PATH = path.join(__dirname, '../data/employees/employee_data.xlsx');
+const ROOT_DIR = process.cwd();
+const FILE_PATH = path.join(
+  ROOT_DIR,
+  'dist',
+  'data',
+  'employees',
+  'employee_data.xlsx',
+);
 
 const configService = new ConfigService();
 const configurationService = new ConfigurationService(configService);
