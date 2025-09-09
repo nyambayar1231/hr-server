@@ -26,10 +26,10 @@ function normalizeKeys<T extends Record<string, any>>(
   return normalized as Record<string, unknown>;
 }
 
-const isProduction = __dirname.includes('dist');
-const FILE_PATH = isProduction
-  ? path.join(__dirname, '../../src/data/employees/employee_data.xlsx')
-  : path.join(__dirname, '../data/employees/employee_data.xlsx');
+const FILE_PATH = path.join(
+  process.cwd(),
+  'src/data/employees/employee_data.xlsx',
+);
 
 const configService = new ConfigService();
 const configurationService = new ConfigurationService(configService);
@@ -49,97 +49,95 @@ export async function ingestEmployeeData(): Promise<void> {
       workbook.Sheets['RAW'],
     );
 
-    console.log(raw[0]);
+    const employees = raw.map((row) => normalizeKeys(row)) as Employee[];
 
-    // const employees = raw.map((row) => normalizeKeys(row)) as Employee[];
+    const vectorStore = await createVectorStoreInstance();
+    const searchableDocuments: Document[] = [];
 
-    // const vectorStore = await createVectorStoreInstance();
-    // const searchableDocuments: Document[] = [];
+    await employeesService.ingestSecureEmployees(employees);
 
-    // await employeesService.ingestSecureEmployees(employees);
+    for (const employee of employees) {
+      const employeeHash = crypto
+        .createHash('sha256')
+        .update(employee.email.toLowerCase().trim())
+        .digest('hex');
 
-    // for (const employee of employees) {
-    //   const employeeHash = crypto
-    //     .createHash('sha256')
-    //     .update(employee.email.toLowerCase().trim())
-    //     .digest('hex');
+      const baseMetadata = {
+        type: 'employee',
+        employeeHash,
+        department: employee.department,
+        position: employee.position,
+        company: employee.company,
+        level: employee.level,
+      };
 
-    //   const baseMetadata = {
-    //     type: 'employee',
-    //     employeeHash,
-    //     department: employee.department,
-    //     position: employee.position,
-    //     company: employee.company,
-    //     level: employee.level,
-    //   };
+      // ------ Profile doc
+      const profileContent = [
+        `Name: ${employee.name}`,
+        `Position: ${employee.position}`,
+        `Department: ${employee.department}`,
+        `Years of Employment: ${employee.total_years_of_employment}`,
+        `Education Level: ${employee.education_level}`,
+        `Degree: ${employee.degree}`,
+        `Languages: ${[
+          employee.language_1,
+          employee.language_2,
+          employee.language_3,
+        ]
+          .filter(Boolean)
+          .join(', ')}`,
+      ].join(' | ');
 
-    //   // ------ Profile doc
-    //   const profileContent = [
-    //     `Name: ${employee.name}`,
-    //     `Position: ${employee.position}`,
-    //     `Department: ${employee.department}`,
-    //     `Years of Employment: ${employee.total_years_of_employment}`,
-    //     `Education Level: ${employee.education_level}`,
-    //     `Degree: ${employee.degree}`,
-    //     `Languages: ${[
-    //       employee.language_1,
-    //       employee.language_2,
-    //       employee.language_3,
-    //     ]
-    //       .filter(Boolean)
-    //       .join(', ')}`,
-    //   ].join(' | ');
+      searchableDocuments.push(
+        new Document({
+          pageContent: profileContent,
+          metadata: {
+            ...baseMetadata,
+            category: 'profile',
+          },
+        }),
+      );
 
-    //   searchableDocuments.push(
-    //     new Document({
-    //       pageContent: profileContent,
-    //       metadata: {
-    //         ...baseMetadata,
-    //         category: 'profile',
-    //       },
-    //     }),
-    //   );
+      // ------ Leave & Attendance doc
+      const leaveContent = [
+        `Annual leave entitlement: ${employee.annual_leave_days_entitled}`,
+        `Leave taken: ${employee.number_of_days_taken_from_entitled_annual_leave}`,
+        `Leave remaining: ${employee.number_of_days_remaining_from_annual_leave_entitlement}`,
+        `Required attendance (Sep 2025, first half): ${employee['required_attendance_first_half_of_september,_2025']}`,
+        `Actual attendance (Sep 2025, first half): ${employee['actual_attendance_first_half_of_september,_2025']}`,
+        `Attendance gap: ${employee['gap_in_attendance,_need_to_calirfy_with_employee']}`,
+      ].join(' | ');
 
-    //   // ------ Leave & Attendance doc
-    //   const leaveContent = [
-    //     `Annual leave entitlement: ${employee.annual_leave_days_entitled}`,
-    //     `Leave taken: ${employee.number_of_days_taken_from_entitled_annual_leave}`,
-    //     `Leave remaining: ${employee.number_of_days_remaining_from_annual_leave_entitlement}`,
-    //     `Required attendance (Sep 2025, first half): ${employee['required_attendance_first_half_of_september,_2025']}`,
-    //     `Actual attendance (Sep 2025, first half): ${employee['actual_attendance_first_half_of_september,_2025']}`,
-    //     `Attendance gap: ${employee['gap_in_attendance,_need_to_calirfy_with_employee']}`,
-    //   ].join(' | ');
+      searchableDocuments.push(
+        new Document({
+          pageContent: leaveContent,
+          metadata: { ...baseMetadata, category: 'leave' },
+        }),
+      );
 
-    //   searchableDocuments.push(
-    //     new Document({
-    //       pageContent: leaveContent,
-    //       metadata: { ...baseMetadata, category: 'leave' },
-    //     }),
-    //   );
+      // -- Performance doc
+      const performanceContent = [
+        `Performance appraisal (2025): ${employee.performance_appraisal_2025_9_box}`,
+        `Learning ability: ${employee.learning_ability_2025_9_box}`,
+        `Career aspiration: ${employee.career_aspiration_2025_9_box}`,
+        `Individual potential: ${employee.individual_potential_2025_9_box}`,
+        `Most recent promotion year: ${employee.most_recent_promotion_year}`,
+        `Years since last promotion: ${employee.number_of_year_since_last_promotion}`,
+        `Attrition risk: ${employee.risk_of_resignation_attrition_risk_2025_9_box}`,
+      ].join(' | ');
 
-    //   // -- Performance doc
-    //   const performanceContent = [
-    //     `Performance appraisal (2025): ${employee.performance_appraisal_2025_9_box}`,
-    //     `Learning ability: ${employee.learning_ability_2025_9_box}`,
-    //     `Career aspiration: ${employee.career_aspiration_2025_9_box}`,
-    //     `Individual potential: ${employee.individual_potential_2025_9_box}`,
-    //     `Most recent promotion year: ${employee.most_recent_promotion_year}`,
-    //     `Years since last promotion: ${employee.number_of_year_since_last_promotion}`,
-    //     `Attrition risk: ${employee.risk_of_resignation_attrition_risk_2025_9_box}`,
-    //   ].join(' | ');
+      searchableDocuments.push(
+        new Document({
+          pageContent: performanceContent,
+          metadata: { ...baseMetadata, category: 'performance' },
+        }),
+      );
+    }
 
-    //   searchableDocuments.push(
-    //     new Document({
-    //       pageContent: performanceContent,
-    //       metadata: { ...baseMetadata, category: 'performance' },
-    //     }),
-    //   );
-    // }
-
-    // if (searchableDocuments.length > 0) {
-    //   await vectorStore.addDocuments(searchableDocuments);
-    //   console.log(`Ingested ${searchableDocuments.length} employee docs`);
-    // }
+    if (searchableDocuments.length > 0) {
+      await vectorStore.addDocuments(searchableDocuments);
+      console.log(`Ingested ${searchableDocuments.length} employee docs`);
+    }
   } catch (error) {
     console.error('Error ingesting employee data:', error);
   }
