@@ -40,7 +40,7 @@ const employeesService = new EmployeeService(
 );
 
 export async function ingestEmployeeData(): Promise<void> {
-  console.log({ FILE_PATH });
+  console.log('-'.repeat(100), { FILE_PATH });
   const vectorStore = await createVectorStoreInstance();
 
   // try {
