@@ -14,6 +14,7 @@ export class AppService {
   async chat(
     message: string,
     userEmail: string,
+    username: string,
   ): Promise<{
     response: string;
     timestamp: string;

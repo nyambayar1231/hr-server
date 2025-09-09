@@ -6,6 +6,8 @@ import { QueryClassifierService, QueryType } from './query-classifier.service';
 import { DocumentProcessorService } from './document-processor.service';
 import { ConfigurationService } from '../config/configuration.service';
 import { VectorStoreService } from './vector-store.service';
+import { EmployeeService } from './employee.service';
+import { VectorStore } from '@langchain/core/vectorstores';
 
 export interface RetrievalResult {
   documents: Document[];
@@ -14,11 +16,19 @@ export interface RetrievalResult {
     queryType: QueryType;
     personalDocsFound: number;
     policyDocsFound: number;
+    employeeDocsFound: number;
     totalBeforeRerank: number;
     totalAfterRerank: number;
     error?: string;
   };
 }
+
+const QUERY_TYPES = {
+  PERSONAL: 'personal',
+  EMPLOYEE: 'employee',
+  POLICY: 'policy',
+  MIXED: 'mixed',
+};
 
 @Injectable()
 export class RetrievalService {
@@ -27,6 +37,7 @@ export class RetrievalService {
     private readonly documentProcessor: DocumentProcessorService,
     private readonly configService: ConfigurationService,
     private readonly vectorStoreService: VectorStoreService,
+    private readonly employeeService: EmployeeService,
   ) {}
 
   async retrieveDocuments(
@@ -35,8 +46,6 @@ export class RetrievalService {
   ): Promise<RetrievalResult> {
     console.log('\n Starting retrieval process...');
 
-    const normalizedEmail = userEmail.toLowerCase().trim();
-
     const vectorStore = await this.vectorStoreService.getVectorStore();
 
     const retriever = await createRetriever();
@@ -44,7 +53,7 @@ export class RetrievalService {
     // Load parent documents if not already loaded
     await loadParentDocuments();
 
-    const queryType = this.queryClassifier.classifyQuery(question);
+    const queryType = await this.queryClassifier.classifyQuery(question);
     const allResults: Document[] = [];
     const debugInfo = {
       queryType,
@@ -52,18 +61,37 @@ export class RetrievalService {
       policyDocsFound: 0,
       totalBeforeRerank: 0,
       totalAfterRerank: 0,
+      employeeDocsFound: 0,
     };
 
     try {
       // Personal document retrieval
-      if (queryType === 'personal' || queryType === 'mixed') {
-        const personalDocs = await this.retrievePersonalDocuments(
+      if (
+        queryType === QUERY_TYPES.PERSONAL ||
+        queryType === QUERY_TYPES.MIXED
+      ) {
+        const personalDoc = await this.retrievePersonalDocument(
+          userEmail,
+          vectorStore,
+        );
+        if (personalDoc) {
+          allResults.push(personalDoc);
+          debugInfo.personalDocsFound = 1;
+        }
+      }
+
+      // Employee document retrieval
+      if (
+        queryType === QUERY_TYPES.EMPLOYEE ||
+        queryType === QUERY_TYPES.MIXED
+      ) {
+        const employeeDocs = await this.retrieveEmployeeDocuments(
           vectorStore,
           question,
           userEmail,
         );
-        allResults.push(...personalDocs);
-        debugInfo.personalDocsFound = personalDocs.length;
+        allResults.push(...employeeDocs);
+        debugInfo.employeeDocsFound = employeeDocs.length;
       }
 
       // Policy document retrieval
@@ -98,34 +126,43 @@ export class RetrievalService {
       return { documents: finalResults, queryType, debugInfo };
     } catch (error) {
       console.error('Error in retrieve step:', error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
       return {
         documents: [],
         queryType,
-        debugInfo: { ...debugInfo, error: error.message },
+        debugInfo: { ...debugInfo, error: errorMessage },
       };
     }
   }
 
-  private async retrievePersonalDocuments(
-    vectorStore: any,
+  private async retrievePersonalDocument(
+    userEmail: string,
+    vectorStore: VectorStore,
+  ): Promise<Document | null> {
+    console.log(`Searching personal documents for: ${userEmail}`);
+    const personalDocument = await this.employeeService.getPersonalDocument(
+      userEmail,
+      vectorStore,
+    );
+    return personalDocument;
+  }
+
+  private async retrieveEmployeeDocuments(
+    vectorStore: VectorStore,
     question: string,
     userEmail: string,
   ): Promise<Document[]> {
     console.log(`Searching personal documents for: ${userEmail}`);
 
-    const personalResults = await vectorStore.similaritySearchWithScore(
+    const personalDocs = await this.employeeService.getEmployeeDocuments(
       question,
-      8,
-      {
-        type: 'personal',
-        email: userEmail,
-      },
+      userEmail,
+      vectorStore,
+      10,
     );
-
-    const personalDocs = personalResults.map(([doc, score]) => ({
-      ...doc,
-      metadata: { ...doc.metadata, relevanceScore: score },
-    }));
 
     console.log(`Found ${personalDocs.length} personal documents`);
     return personalDocs;

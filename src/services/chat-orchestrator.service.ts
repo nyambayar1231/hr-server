@@ -6,11 +6,13 @@ import { GenerationService } from './generation.service';
 const InputStateAnnotation = Annotation.Root({
   question: Annotation<string>,
   userEmail: Annotation<string>,
+  username: Annotation<string>,
 });
 
 const StateAnnotation = Annotation.Root({
   question: Annotation<string>,
   userEmail: Annotation<string>,
+  username: Annotation<string>,
   queryType: Annotation<'personal' | 'policy' | 'mixed'>,
   context: Annotation<any[]>,
   answer: Annotation<string>,
@@ -60,8 +62,6 @@ export class ChatOrchestratorService {
         state.question,
         state.userEmail,
       );
-
-    console.log(result);
 
     return {
       context: result.documents,

@@ -17,9 +17,9 @@ export class AppController {
     @Headers() headers: Record<string, string>,
   ) {
     const userEmail = headers['x-user-email'];
-    console.log(userEmail);
+    const username = headers['x-user-name'];
 
-    return this.appService.chat(body.message, userEmail);
+    return this.appService.chat(body.message, userEmail, username);
   }
 
   @Post('ingest/employees')
