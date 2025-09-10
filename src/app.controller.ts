@@ -22,6 +22,17 @@ export class AppController {
     return this.appService.chatv2(body.message, userEmail, username);
   }
 
+  @Post('chat-power-app')
+  postPowerChat(
+    @Body() body: { message: string },
+    @Headers() headers: Record<string, string>,
+  ) {
+    console.log({ body, headers });
+    const userEmail = 'nyambayar.e@techpack.mn';
+    const username = 'nyambayar enkhbayar';
+    return this.appService.chatv2(body.message, userEmail, username);
+  }
+
   @Post('ingest/employees')
   async ingestEmployees() {
     return this.appService.ingestEmployees();
