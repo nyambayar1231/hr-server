@@ -23,10 +23,11 @@
   },
   "dependencies": {
     "@langchain/cohere": "^0.3.4",
-    "@langchain/community": "^0.3.53",
+    "@langchain/community": "^0.3.54",
     "@langchain/core": "^0.3.72",
     "@langchain/groq": "^0.2.3",
     "@langchain/langgraph": "^0.4.8",
+    "@langchain/langgraph-checkpoint-postgres": "^0.1.2",
     "@langchain/openai": "^0.6.11",
     "@langchain/textsplitters": "^0.1.0",
     "@nestjs/common": "^11.0.1",
@@ -47,7 +48,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "uuid": "^11.1.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

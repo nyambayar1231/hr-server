@@ -19,7 +19,7 @@ export class AppController {
     const userEmail = headers['x-user-email'];
     const username = headers['x-user-name'];
 
-    return this.appService.chat(body.message, userEmail, username);
+    return this.appService.chatv2(body.message, userEmail, username);
   }
 
   @Post('ingest/employees')

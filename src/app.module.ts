@@ -11,6 +11,8 @@ import { VectorStoreService } from './services/vector-store.service';
 import { EmployeeService } from './services/employee.service';
 import { ConfigurationService } from './config/configuration.service';
 import { appConfig } from './config/app.config';
+import { CheckpointModule } from './checkpoint.module';
+import { ChatService } from './services/chat.service';
 
 @Module({
   imports: [
@@ -19,6 +21,7 @@ import { appConfig } from './config/app.config';
       envFilePath: '.env',
       load: [appConfig],
     }),
+    CheckpointModule,
   ],
   controllers: [AppController],
   providers: [
@@ -31,6 +34,7 @@ import { appConfig } from './config/app.config';
     GenerationService,
     ChatOrchestratorService,
     VectorStoreService,
+    ChatService,
   ],
 })
 export class AppModule {}
