@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ChatOrchestratorService } from './services/chat-orchestrator.service';
 import { ingestEmployeeData } from './ingestion/ingest_employees';
 import { ingestPolicies as ingestPoliciesFn } from './ingestion/ingest_policies';
+import { ChatService } from './services/chat.service';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly chatOrchestrator: ChatOrchestratorService) {}
+  constructor(
+    private readonly chatOrchestrator: ChatOrchestratorService,
+    private readonly chatService: ChatService,
+  ) {}
 
   getHello(): string {
     return 'Hello World!';
@@ -22,6 +26,22 @@ export class AppService {
   }> {
     try {
       return await this.chatOrchestrator.processChat(message, userEmail);
+    } catch (error: unknown) {
+      // Re-throw with a safe string message
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(message);
+    }
+  }
+
+  async chatv2(
+    message: string,
+    userEmail: string,
+    username: string,
+  ): Promise<{
+    response: string;
+  }> {
+    try {
+      return await this.chatService.processChat(message, userEmail);
     } catch (error: unknown) {
       // Re-throw with a safe string message
       const message = error instanceof Error ? error.message : 'Unknown error';
