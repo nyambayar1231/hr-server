@@ -324,7 +324,7 @@ export class EmployeeService {
     return decrypted;
   }
 
-  private createEmailHash(email: string): string {
+  createEmailHash(email: string): string {
     return crypto
       .createHash('sha256')
       .update(email.toLowerCase().trim())

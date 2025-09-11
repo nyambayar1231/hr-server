@@ -13,6 +13,7 @@ import { ConfigurationService } from './config/configuration.service';
 import { appConfig } from './config/app.config';
 import { CheckpointModule } from './checkpoint.module';
 import { ChatService } from './services/chat.service';
+import { DatabaseModule } from './database.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ChatService } from './services/chat.service';
       envFilePath: '.env',
       load: [appConfig],
     }),
+    DatabaseModule,
     CheckpointModule,
   ],
   controllers: [AppController],

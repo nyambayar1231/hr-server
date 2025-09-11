@@ -83,6 +83,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      tools:
+        specifier: link:@langchain/core/tools
+        version: link:@langchain/core/tools
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
