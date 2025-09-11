@@ -15,6 +15,7 @@ import { ConfigurationService } from 'src/config/configuration.service';
 import { Pool } from 'pg';
 import { EmployeeService } from './employee.service';
 import { v4 as uuidv4 } from 'uuid';
+import 'dotenv/config';
 
 export interface ChatMessage {
   role: 'user' | 'system';
@@ -310,8 +311,7 @@ export class ChatService {
           {
             headers: {
               'Content-Type': 'application/json',
-              Authorization:
-                'Bearer 78UCnJja9ujYSx0kozcDsZmtHk6AlQNwYYB94T2GKVmUtR6LrAblJQQJ99BIACYeBjFAArohAAABAZBS1PYM.7R0OuL7afDfjtPsBQZSUDWpeVn5hcj9ffi3feijVEH5jE4iDplcFJQQJ99BIACYeBjFAArohAAABAZBS3U2Y',
+              Authorization: `Bearer ${process.env.AZURE_APP_BOT_KEY}`,
             },
             timeout: 30000,
           },
