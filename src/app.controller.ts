@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, Headers, Param } from '@nestjs/common';
 
 import { AppService } from './app.service';
 
@@ -11,15 +11,30 @@ export class AppController {
     return this.appService.getHello();
   }
 
+  @Get('conversations')
+  getConversations(@Headers() headers: Record<string, string>) {
+    const userEmail = headers['x-user-email'];
+    const conversations = this.appService.getConversations(userEmail);
+    return conversations;
+  }
+
+  @Get('conversations/:conversationId')
+  getConversationMessages(@Param('conversationId') conversationId: string) {
+    const conversationMessages =
+      this.appService.getConversationMessages(conversationId);
+
+    console.log({ conversationMessages });
+
+    return conversationMessages;
+  }
+
   @Post('chat')
   postChat(
     @Body() body: { message: string },
     @Headers() headers: Record<string, string>,
   ) {
     const userEmail = headers['x-user-email'];
-    const username = headers['x-user-name'];
-
-    return this.appService.chatv2(body.message, userEmail, username);
+    return this.appService.chatv2(body.message, userEmail);
   }
 
   @Post('chat-power-app')
@@ -29,8 +44,8 @@ export class AppController {
   ) {
     console.log({ body, headers });
     const userEmail = 'nyambayar.e@techpack.mn';
-    const username = 'nyambayar enkhbayar';
-    return this.appService.chatv2(body.message, userEmail, username);
+    // const username = 'nyambayar enkhbayar';
+    return this.appService.chatv2(body.message, userEmail);
   }
 
   @Post('ingest/employees')

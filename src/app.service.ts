@@ -33,13 +33,7 @@ export class AppService {
     }
   }
 
-  async chatv2(
-    message: string,
-    userEmail: string,
-    username: string,
-  ): Promise<{
-    response: string;
-  }> {
+  async chatv2(message: string, userEmail: string) {
     try {
       return await this.chatService.processChat(message, userEmail);
     } catch (error: unknown) {
@@ -47,6 +41,20 @@ export class AppService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(message);
     }
+  }
+
+  async getConversations(userEmail: string): Promise<Record<string, any>[]> {
+    const conversations = await this.chatService.getUserSessions(userEmail);
+    return conversations;
+  }
+
+  async getConversationMessages(
+    conversationId: string,
+  ): Promise<Record<string, any>> {
+    const conversationMessages =
+      await this.chatService.getConversationMessages(conversationId);
+
+    return conversationMessages;
   }
 
   async ingestEmployees(): Promise<{ message: string; success: boolean }> {

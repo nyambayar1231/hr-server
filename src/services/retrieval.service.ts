@@ -51,7 +51,7 @@ export class RetrievalService {
     const retriever = await createRetriever();
 
     // Load parent documents if not already loaded
-    await loadParentDocuments();
+    // await loadParentDocuments();
 
     const queryType = await this.queryClassifier.classifyQuery(question);
     const allResults: Document[] = [];

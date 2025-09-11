@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { QueryClassifierService } from './services/query-classifier.service';
@@ -22,6 +23,7 @@ import { DatabaseModule } from './database.module';
       envFilePath: '.env',
       load: [appConfig],
     }),
+    HttpModule,
     DatabaseModule,
     CheckpointModule,
   ],

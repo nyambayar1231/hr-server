@@ -4,6 +4,8 @@
 import { Annotation, StateGraph } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Inject, Injectable } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { RetrievalResult, RetrievalService } from './retrieval.service';
 import { GenerationService } from './generation.service';
 import { Document } from '@langchain/core/documents';
@@ -12,10 +14,14 @@ import { createLLM } from 'src/models/groq_llm';
 import { ConfigurationService } from 'src/config/configuration.service';
 import { Pool } from 'pg';
 import { EmployeeService } from './employee.service';
+import { v4 as uuidv4 } from 'uuid';
 
-interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+export interface ChatMessage {
+  role: 'user' | 'system';
   content: string;
+  conversationId: string;
+  contentType: 'text' | 'table';
+  data?: Record<string, any>[];
   timestamp?: Date;
 }
 
@@ -27,20 +33,24 @@ const InputStateAnnotation = Annotation.Root({
 });
 
 const StateAnnotation = Annotation.Root({
+  // Input states
   question: Annotation<string>(),
   userEmail: Annotation<string>(),
   username: Annotation<string>(),
+
+  // Graph state
   queryType: Annotation<'personal' | 'employee' | 'policy' | 'mixed'>(),
   context: Annotation<Document[]>(),
   answer: Annotation<string>(),
   debugInfo: Annotation<any>(),
 
+  // contentType: Annotation<string>(),
+  // data: Annotation<Record<string, any>[]>(),
+
   //  message persistence
   messages: Annotation<Array<ChatMessage>>({
     reducer: (x, y) => {
-      // Merge messages, avoiding duplicates
-      const allMessages = [...(x ?? []), ...(y ?? [])];
-      return allMessages;
+      return [...(x ?? []), ...(y ?? [])];
     },
     default: () => [],
   }),
@@ -81,6 +91,7 @@ export class ChatService {
   constructor(
     @Inject('CHECKPOINTER') private readonly checkpointer: PostgresSaver,
     @Inject('PG_POOL') private readonly pool: Pool,
+    private readonly httpService: HttpService,
     private readonly employeeService: EmployeeService,
     private readonly retrievalService: RetrievalService,
     private readonly generationService: GenerationService,
@@ -115,20 +126,53 @@ export class ChatService {
     this.structuredLlm = createLLM(configService);
   }
 
-  private askEmailPermission() {
-    const answer = `Та цагийн бүртгэл авахыг хүсэж байн уу?`;
+  private async askEmailPermission(state: typeof StateAnnotation.State) {
+    const powerAutomateUrl =
+      'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/db22d5f052ce4c6297c4227fd5628565/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aomw9aRVXrlJPvBjgZ6Pk1TMuMINCFs5UvkHJGHvAVE';
 
-    // Add system message to conversation history
-    const newMessage: ChatMessage = {
+    let content = '';
+    let contentType: 'text' | 'table' = 'text';
+    let data: Record<string, any>[] = [];
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          powerAutomateUrl,
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      // Extract data from the response
+      const responseData = response.data as Record<string, any>[];
+      const statusCode = response.status;
+
+      contentType = 'table';
+      content = 'Та дээрх ажилчид руу сануулах мэйл илгээх үү?';
+      data = responseData;
+    } catch (error) {
+      console.error(error);
+      content = 'Алдаа гарлаа';
+      contentType = 'text';
+    }
+
+    // Add the new user message into conversation history
+    const AiMessage: ChatMessage = {
       role: 'system',
-      content: answer,
+      content,
+      conversationId: state.conversationId,
       timestamp: new Date(),
+      contentType,
+      data,
     };
 
     return {
-      answer,
-      messages: [newMessage],
-      lastActivity: new Date(),
+      messages: [AiMessage],
     };
   }
 
@@ -140,6 +184,8 @@ export class ChatService {
       role: 'system',
       content: answer,
       timestamp: new Date(),
+      contentType: 'text',
+      conversationId: state.conversationId,
     };
 
     return {
@@ -180,15 +226,15 @@ export class ChatService {
       role: 'user',
       content: state.question,
       timestamp: new Date(),
+      contentType: 'text',
+      conversationId: state.conversationId,
     };
 
-    // Use the last few messages as context
     const conversationContext = (state.messages ?? [])
       .slice(-1)
       .map((m) => `${m.role}: ${m.content}`)
       .join('\n');
 
-    // Detect if we recently asked for time tracking permission
     const askedPermissionRecently = (state.messages ?? [])
       .slice(-3) // Check more messages
       .some((m) => {
@@ -201,7 +247,6 @@ export class ChatService {
         );
       });
 
-    // Check for both Cyrillic and Latin variants
     const mentionsTimeTracking =
       lowerQuestion.includes('цаг бүртгэл') ||
       lowerQuestion.includes('tsag burtgel') ||
@@ -263,7 +308,7 @@ export class ChatService {
 
     return {
       actionType,
-      messages: [...(state.messages ?? []), userMessage],
+      messages: [userMessage],
       lastActivity: new Date(),
     };
   }
@@ -277,14 +322,73 @@ export class ChatService {
   async processChat(
     question: string,
     userEmail: string,
-  ): Promise<{ response: string }> {
-    const config = { configurable: { thread_id: userEmail } };
+    conversationId?: string,
+  ): Promise<{
+    response: ChatMessage;
+  }> {
+    // Create thread id if it is the first time chat
+    const sessionId = conversationId ?? uuidv4();
+
+    await this.ensureChatSessionsTable();
+    await this.upsertChatSession(sessionId, userEmail);
+
+    const config = { configurable: { thread_id: sessionId } };
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const result = await this.graph.invoke({ question, userEmail }, config);
-
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    return { response: result.answer };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const result = await this.graph.invoke(
+      { question, userEmail, conversationId: sessionId },
+      config,
+    );
+
+    return {
+      response: result.messages.slice(-1)?.[0],
+    };
+  }
+
+  async getUserSessions(userEmail: string) {
+    const userEmailHash = this.employeeService.createEmailHash(userEmail);
+    try {
+      const { rows } = await this.pool.query(
+        `
+        SELECT session_id, created_at, last_activity
+        FROM chat_sessions
+        WHERE user_email_hash = $1
+        ORDER BY last_activity DESC
+      `,
+        [userEmailHash],
+      );
+      return rows as Record<string, any>[];
+    } catch (error: any) {
+      console.error('Error during list user sessions:', error);
+      throw new Error(error);
+    }
+  }
+
+  async getConversationMessages(conversationId: string) {
+    const config = { configurable: { thread_id: conversationId } };
+
+    try {
+      const checkpoint = await this.checkpointer.get(config);
+      const messages = (checkpoint?.channel_values?.messages ?? []) as Array<
+        { timestamp?: Date | string } & Record<string, unknown>
+      >;
+
+      const toTime = (m: { timestamp?: Date | string } | undefined) => {
+        if (!m || !m.timestamp) return 0;
+        try {
+          return new Date(m.timestamp as any).getTime() || 0;
+        } catch {
+          return 0;
+        }
+      };
+
+      return [...messages].sort((a, b) => toTime(b) - toTime(a));
+    } catch (error) {
+      console.error('Error retrieving conversation history:', error);
+      return [];
+    }
   }
 
   private async retrieve(state: typeof InputStateAnnotation.State) {
@@ -307,5 +411,41 @@ export class ChatService {
     );
 
     return { answer };
+  }
+
+  private async ensureChatSessionsTable() {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_sessions (
+        session_id UUID PRIMARY KEY,
+        user_email_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_activity TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_email_hash
+        ON chat_sessions (user_email_hash);
+    `);
+
+      console.log('Chat Session Table Created:');
+    } finally {
+      client.release();
+    }
+  }
+
+  private async upsertChatSession(sessionId: string, userEmail: string) {
+    const userEmailHash = this.employeeService.createEmailHash(userEmail);
+    await this.pool.query(
+      `
+        INSERT INTO chat_sessions (session_id, user_email_hash)
+        VALUES ($1, $2)
+        ON CONFLICT (session_id)
+        DO UPDATE SET
+            last_activity = NOW()
+            WHERE chat_sessions.user_email_hash = EXCLUDED.user_email_hash;
+      `,
+      [sessionId, userEmailHash],
+    );
   }
 }
