@@ -128,10 +128,7 @@ export class ChatService {
   }
 
   private async askEmailPermission(state: typeof StateAnnotation.State) {
-    console.log({ state });
-
-    const powerAutomateUrl =
-      'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/db22d5f052ce4c6297c4227fd5628565/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aomw9aRVXrlJPvBjgZ6Pk1TMuMINCFs5UvkHJGHvAVE';
+    const powerAutomateUrl = process.env.POWER_AUTOMATE_WEBHOOK_URL!;
 
     let content = '';
     let contentType: 'text' | 'table' = 'text';
