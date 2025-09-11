@@ -5,7 +5,7 @@ import { Annotation, StateGraph } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import { Inject, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timestamp } from 'rxjs';
 import { RetrievalResult, RetrievalService } from './retrieval.service';
 import { GenerationService } from './generation.service';
 import { Document } from '@langchain/core/documents';
@@ -127,6 +127,8 @@ export class ChatService {
   }
 
   private async askEmailPermission(state: typeof StateAnnotation.State) {
+    console.log({ state });
+
     const powerAutomateUrl =
       'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/db22d5f052ce4c6297c4227fd5628565/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=aomw9aRVXrlJPvBjgZ6Pk1TMuMINCFs5UvkHJGHvAVE';
 
@@ -209,16 +211,6 @@ export class ChatService {
   }
 
   private async analyzeQuery(state: typeof StateAnnotation.State) {
-    const hashedUserEmail = this.employeeService.createEmailHash(
-      state.userEmail,
-    );
-
-    const secureUser = await this.employeeService.getSecureEmployeeData([
-      hashedUserEmail,
-    ]);
-
-    const requestingUserRole = secureUser[0]?.employee_role;
-
     const lowerQuestion = state.question.toLowerCase().trim();
 
     // Add the new user message into conversation history
@@ -230,80 +222,30 @@ export class ChatService {
       conversationId: state.conversationId,
     };
 
-    const conversationContext = (state.messages ?? [])
-      .slice(-1)
-      .map((m) => `${m.role}: ${m.content}`)
-      .join('\n');
-
+    // Check if we recently asked for permission
     const askedPermissionRecently = (state.messages ?? [])
-      .slice(-3) // Check more messages
+      .slice(-1)
       .some((m) => {
         return (
           m.role === 'system' &&
           typeof m.content === 'string' &&
-          (m.content.includes('Та цагийн бүртгэл авахыг хүсэж байн уу?') ||
-            m.content.includes('permission') ||
-            m.content.includes('consent'))
+          m.content.includes('Та дээрх ажилчид руу сануулах мэйл илгээх үү?')
         );
       });
 
-    const mentionsTimeTracking =
-      lowerQuestion.includes('цаг бүртгэл') ||
-      lowerQuestion.includes('tsag burtgel') ||
-      lowerQuestion.includes('tsag burgel');
+    let actionType: 'askEmailPermission' | 'sendEmail' | 'none' = 'none';
 
-    const prompt = `You are a strict classifier that returns only one of: sendEmail, askEmailPermission, none.
-  
-  Conversation (most recent last):
-  ${conversationContext ?? ''}
-  user: ${state.question}
-  
-  Rules (must follow exactly):
-  - Look for time tracking topics: "цаг бүртгэл", "tsag burtgel", "tsag burgel"
-  - If user message indicates agreement/consent (e.g., "тийм", "тэгий", "за", "зөв", "болъё", "ok", "okay", "yes") AND recent context shows we asked permission about time tracking, return sendEmail.
-  - If user message mentions time tracking for the first time or asks about it, return askEmailPermission.
-  - Otherwise return none.
-  
-  Return exactly one token: sendEmail | askEmailPermission | none.`;
-
-    let actionType:
-      | 'askEmailPermission'
-      | 'sendEmail'
-      | 'askEmployee'
-      | 'none' = 'none';
-
-    try {
-      const response = await this.structuredLlm.invoke(prompt);
-      const text = this.getTextFromMessageContent(
-        (response as { content: unknown }).content,
-      ).toLowerCase();
-
-      if (text.includes('sendemail')) {
-        actionType = 'sendEmail';
-      } else if (text.includes('askemailpermission')) {
-        if (requestingUserRole === 'Human Resource') {
-          actionType = 'askEmailPermission';
-        } else {
-          actionType = 'askEmployee';
-        }
-      }
-
-      if (actionType === 'sendEmail' && !askedPermissionRecently) {
-        actionType = 'none';
-      }
-
-      if (actionType === 'none' && mentionsTimeTracking) {
-        actionType = 'askEmailPermission';
-      }
-    } catch {
-      // Fallback logic when LLM fails
-      if (actionType === 'none' && mentionsTimeTracking) {
-        if (requestingUserRole === 'Human Resource') {
-          actionType = 'askEmailPermission';
-        } else {
-          actionType = 'askEmployee';
-        }
-      }
+    if (lowerQuestion.includes('tsagiin burtgel')) {
+      actionType = 'askEmailPermission';
+    } else if (
+      (askedPermissionRecently &&
+        (lowerQuestion.includes('yes') ||
+          lowerQuestion.includes('тийм') ||
+          lowerQuestion.includes('за'))) ||
+      lowerQuestion.includes('тэгий') ||
+      lowerQuestion.includes('tegii')
+    ) {
+      actionType = 'sendEmail';
     }
 
     return {
@@ -347,6 +289,108 @@ export class ChatService {
     };
   }
 
+  async processCopilotChat(
+    question: string,
+    userEmail: string,
+    conversationId?: string,
+  ) {
+    const sessionId = conversationId ?? uuidv4();
+
+    await this.ensureChatSessionsTable();
+    await this.upsertChatSession(sessionId, userEmail);
+
+    const botUrl =
+      'https://directline.botframework.com/v3/directline/tokens/generate';
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          botUrl,
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization:
+                'Bearer 78UCnJja9ujYSx0kozcDsZmtHk6AlQNwYYB94T2GKVmUtR6LrAblJQQJ99BIACYeBjFAArohAAABAZBS1PYM.7R0OuL7afDfjtPsBQZSUDWpeVn5hcj9ffi3feijVEH5jE4iDplcFJQQJ99BIACYeBjFAArohAAABAZBS3U2Y',
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      const { token } = response.data;
+
+      const newConversationResponse = await firstValueFrom(
+        this.httpService.post(
+          'https://directline.botframework.com/v3/directline/conversations',
+          {},
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      const newConversation = newConversationResponse.data;
+
+      const { conversationId } = newConversation;
+
+      await firstValueFrom(
+        this.httpService.post(
+          `https://directline.botframework.com/v3/directline/conversations/${conversationId}/activities`,
+
+          {
+            locale: 'mn-MN',
+            type: 'message',
+            from: {
+              id: userEmail,
+            },
+            text: question,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 5000);
+      });
+
+      const getMessagesResponse = await firstValueFrom(
+        this.httpService.get(
+          `https://directline.botframework.com/v3/directline/conversations/${conversationId}/activities/`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      const messages = getMessagesResponse.data.activities.map((activity) => ({
+        timestamp: activity.timestamp,
+        content: activity.text,
+        role: activity.from.id === userEmail ? 'user' : 'system',
+        contentType: 'text',
+      }));
+      const lastMessage = messages.slice(-1);
+
+      return lastMessage?.[0];
+    } catch (error) {}
+  }
+
   async getUserSessions(userEmail: string) {
     const userEmailHash = this.employeeService.createEmailHash(userEmail);
     try {
@@ -384,7 +428,7 @@ export class ChatService {
         }
       };
 
-      return [...messages].sort((a, b) => toTime(b) - toTime(a));
+      return [...messages].sort((a, b) => toTime(a) - toTime(b));
     } catch (error) {
       console.error('Error retrieving conversation history:', error);
       return [];
@@ -410,7 +454,19 @@ export class ChatService {
       state.context,
     );
 
-    return { answer };
+    // Add the new user message into conversation history
+    const AiMessage: ChatMessage = {
+      role: 'system',
+      content: answer,
+      conversationId: state.conversationId,
+      timestamp: new Date(),
+      contentType: 'text',
+    };
+
+    return {
+      response: AiMessage,
+      messages: [AiMessage],
+    };
   }
 
   private async ensureChatSessionsTable() {

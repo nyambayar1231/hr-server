@@ -15,17 +15,9 @@ export class AppService {
     return 'Hello World!';
   }
 
-  async chat(
-    message: string,
-    userEmail: string,
-    username: string,
-  ): Promise<{
-    response: string;
-    timestamp: string;
-    debugInfo?: any;
-  }> {
+  async chatCopilot(message: string, userEmail: string): Promise<any> {
     try {
-      return await this.chatOrchestrator.processChat(message, userEmail);
+      return await this.chatService.processCopilotChat(message, userEmail);
     } catch (error: unknown) {
       // Re-throw with a safe string message
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -33,9 +25,13 @@ export class AppService {
     }
   }
 
-  async chatv2(message: string, userEmail: string) {
+  async chatv2(message: string, userEmail: string, conversationId: string) {
     try {
-      return await this.chatService.processChat(message, userEmail);
+      return await this.chatService.processChat(
+        message,
+        userEmail,
+        conversationId,
+      );
     } catch (error: unknown) {
       // Re-throw with a safe string message
       const message = error instanceof Error ? error.message : 'Unknown error';

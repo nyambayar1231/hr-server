@@ -23,18 +23,45 @@ export class AppController {
     const conversationMessages =
       this.appService.getConversationMessages(conversationId);
 
-    console.log({ conversationMessages });
-
     return conversationMessages;
   }
 
-  @Post('chat')
-  postChat(
+  // --------------------> Copilot
+  @Post('chat/copilot')
+  async postChatCopilot(
     @Body() body: { message: string },
     @Headers() headers: Record<string, string>,
   ) {
     const userEmail = headers['x-user-email'];
-    return this.appService.chatv2(body.message, userEmail);
+    const message = await this.appService.chatCopilot(body.message, userEmail);
+
+    return {
+      response: message,
+    };
+  }
+
+  @Post('chat')
+  async postChat(
+    @Body() body: { message: string; conversationId: string },
+    @Headers() headers: Record<string, string>,
+  ) {
+    const userEmail = headers['x-user-email'];
+
+    if (body.conversationId) {
+      return this.appService.chatv2(
+        body.message,
+        userEmail,
+        body.conversationId,
+      );
+    }
+
+    const response = await this.appService.chatv2(
+      body.message,
+      userEmail,
+      body.conversationId,
+    );
+
+    return response;
   }
 
   @Post('chat-power-app')
@@ -44,8 +71,7 @@ export class AppController {
   ) {
     console.log({ body, headers });
     const userEmail = 'nyambayar.e@techpack.mn';
-    // const username = 'nyambayar enkhbayar';
-    return this.appService.chatv2(body.message, userEmail);
+    return this.appService.chatv2(body.message, userEmail, '');
   }
 
   @Post('ingest/employees')

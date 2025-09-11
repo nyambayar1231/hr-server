@@ -176,7 +176,9 @@ export class QueryClassifierService {
 
 Classification Rules:
 - If the question uses first-person pronouns (I, my, me, am I, do I, can I) → "personal"
-- If the question asks about specific people by name or role (John Smith, manager of X, who works in Y) → "employee" 
+- If the question asks about specific people by name or role (John Smith, manager of X, who works in Y) → "employee"
+- If the question asks about "employees" in general, their rights, benefits, or rules that apply to all → "policy"
+- If the question contains words like "rights", "benefits", "policy", "procedure", "rules" → "policy"
 - If the question asks about company-wide policies, procedures, or rules → "policy"
 - If the question combines multiple elements → "mixed"
 
@@ -194,13 +196,17 @@ English:
 - "Find employee in accounting department" → employee
 - "Who works in IT?" → employee
 
+
 Mongolian:
 - "Миний цалин хэд вэ?" → personal
 - "Нурболын албан тушаал юу вэ?" → employee
 - "Амралтын журам юу вэ?" → policy
-- "Хэрхэн амралт авах вэ?" → policy
-- "Миний амралт хэдэн хоног байна?" → personal
+- "Ажилтны эрх юу вэ?" → policy (employee rights)
+- "Ажилтан хэрхэн амралт авах вэ?" → policy (how employees take leave)
+- "Ажилчдын цалингийн бодлого?" → policy (employee salary policy)
 - "Хэн ажилладаг санхүүгийн хэлтэст?" → employee
+
+
 
 Question: "${question}"
 

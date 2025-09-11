@@ -12,10 +12,7 @@ import {
 
 dotenv.config();
 
-const isProduction = __dirname.includes('dist');
-const policiesDirectory = isProduction
-  ? path.join(__dirname, '../../src/data/policies')
-  : path.join(__dirname, '../data/policies');
+const policiesDirectory = path.join(process.cwd(), 'src/data/policies');
 
 export async function ingestPolicies(): Promise<void> {
   const retriever = await createRetriever();
