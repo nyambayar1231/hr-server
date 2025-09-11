@@ -53,11 +53,7 @@ export interface Employee {
 
 interface SecureEmployee {
   employee_hash: string;
-  name: string;
-  position: string;
-  department: string;
-  years_employment: number;
-  enrolled_date: string;
+  employee_role: string;
   encrypted_email: string;
   encrypted_salary: string;
 }
@@ -102,13 +98,15 @@ export class EmployeeService {
         await client.query(
           `
           INSERT INTO secure_employees (
-            employee_hash, 
+            employee_hash,
+            employee_role,
             encrypted_email, 
             encrypted_salary
-          ) VALUES ($1, $2, $3)
+          ) VALUES ($1, $2, $3, $4)
         `,
           [
             employeeHash,
+            employee.role,
             this.encrypt(employee.email),
             this.encrypt(employee.salary_mnt.toString()),
           ],
@@ -280,7 +278,7 @@ export class EmployeeService {
     return parts.join(' | ');
   }
 
-  private async getSecureEmployeeData(
+  async getSecureEmployeeData(
     employeeHashes: string[],
   ): Promise<SecureEmployee[]> {
     const client = await this.pool.connect();
@@ -288,7 +286,7 @@ export class EmployeeService {
     try {
       const result = await client.query(
         `
-        SELECT employee_hash, encrypted_email, encrypted_salary
+        SELECT employee_hash, employee_role, encrypted_email, encrypted_salary
         FROM secure_employees 
         WHERE employee_hash = ANY($1)
       `,
@@ -312,7 +310,7 @@ export class EmployeeService {
     return iv.toString('hex') + ':' + encrypted;
   }
 
-  private decrypt(encryptedText: string): string {
+  decrypt(encryptedText: string): string {
     const algorithm = 'aes-256-cbc';
     const parts = encryptedText.split(':');
     const iv = Buffer.from(parts[0], 'hex');

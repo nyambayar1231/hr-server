@@ -50,7 +50,9 @@ const StateAnnotation = Annotation.Root({
   lastActivity: Annotation<Date>(),
 
   // Action tracking
-  actionType: Annotation<'askEmailPermission' | 'sendEmail' | 'none'>(),
+  actionType: Annotation<
+    'askEmailPermission' | 'sendEmail' | 'askEmployee' | 'none'
+  >(),
 });
 
 @Injectable()
@@ -90,6 +92,7 @@ export class ChatService {
       .addNode('retrieve', this.retrieve.bind(this))
       .addNode('generate', this.generate.bind(this))
       .addNode('askEmailPermission', this.askEmailPermission.bind(this))
+      .addNode('askEmployee', this.askEmployee.bind(this))
 
       // Edges
       .addEdge('__start__', 'analyzeQuery')
@@ -99,6 +102,7 @@ export class ChatService {
 
       .addEdge('askEmailPermission', '__end__')
       .addEdge('sendEmail', '__end__')
+      .addEdge('askEmployee', '__end__')
 
       .addEdge('retrieve', 'generate')
       .addEdge('generate', '__end__')
@@ -151,6 +155,8 @@ export class ChatService {
         return 'askEmailPermission';
       case 'sendEmail':
         return 'sendEmail';
+      case 'askEmployee':
+        return 'askEmployee';
       default:
         return 'retrieve';
     }
@@ -161,7 +167,11 @@ export class ChatService {
       state.userEmail,
     );
 
-    console.log({ hashedUserEmail });
+    const secureUser = await this.employeeService.getSecureEmployeeData([
+      hashedUserEmail,
+    ]);
+
+    const requestingUserRole = secureUser[0]?.employee_role;
 
     const lowerQuestion = state.question.toLowerCase().trim();
 
@@ -174,19 +184,20 @@ export class ChatService {
 
     // Use the last few messages as context
     const conversationContext = (state.messages ?? [])
-      .slice(-5)
+      .slice(-1)
       .map((m) => `${m.role}: ${m.content}`)
       .join('\n');
 
     // Detect if we recently asked for time tracking permission
     const askedPermissionRecently = (state.messages ?? [])
-      .slice(-1)
+      .slice(-3) // Check more messages
       .some((m) => {
-        console.log({ m });
         return (
           m.role === 'system' &&
           typeof m.content === 'string' &&
-          m.content.includes('Та цагийн бүртгэл авахыг хүсэж байн уу?')
+          (m.content.includes('Та цагийн бүртгэл авахыг хүсэж байн уу?') ||
+            m.content.includes('permission') ||
+            m.content.includes('consent'))
         );
       });
 
@@ -210,42 +221,56 @@ export class ChatService {
   
   Return exactly one token: sendEmail | askEmailPermission | none.`;
 
-    let actionType: 'askEmailPermission' | 'sendEmail' | 'none' = 'none';
+    let actionType:
+      | 'askEmailPermission'
+      | 'sendEmail'
+      | 'askEmployee'
+      | 'none' = 'none';
 
     try {
-      // const response = await this.structuredLlm.invoke(prompt);
-      const response = 'sendEmail';
-      // const text = this.getTextFromMessageContent(
-      //   (response as { content: unknown }).content,
-      // ).toLowerCase();
-      const text = response;
+      const response = await this.structuredLlm.invoke(prompt);
+      const text = this.getTextFromMessageContent(
+        (response as { content: unknown }).content,
+      ).toLowerCase();
 
       if (text.includes('sendemail')) {
         actionType = 'sendEmail';
       } else if (text.includes('askemailpermission')) {
-        actionType = 'askEmailPermission';
+        if (requestingUserRole === 'Human Resource') {
+          actionType = 'askEmailPermission';
+        } else {
+          actionType = 'askEmployee';
+        }
       }
 
-      // Apply guardrails more carefully
       if (actionType === 'sendEmail' && !askedPermissionRecently) {
         actionType = 'none';
       }
 
-      // If LLM is unsure but user clearly mentions time tracking, use fallback
       if (actionType === 'none' && mentionsTimeTracking) {
         actionType = 'askEmailPermission';
       }
     } catch {
       // Fallback logic when LLM fails
-      if (mentionsTimeTracking) {
-        actionType = 'askEmailPermission';
+      if (actionType === 'none' && mentionsTimeTracking) {
+        if (requestingUserRole === 'Human Resource') {
+          actionType = 'askEmailPermission';
+        } else {
+          actionType = 'askEmployee';
+        }
       }
     }
 
     return {
-      actionType: 'sendEmail',
+      actionType,
       messages: [...(state.messages ?? []), userMessage],
       lastActivity: new Date(),
+    };
+  }
+
+  askEmployee(state: typeof StateAnnotation.State) {
+    return {
+      answer: 'Only hr allowed to get tsag burtgel if you want I can ...',
     };
   }
 

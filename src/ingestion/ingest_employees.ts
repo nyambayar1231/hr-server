@@ -133,7 +133,7 @@ export async function ingestEmployeeData(): Promise<void> {
     }
 
     if (searchableDocuments.length > 0) {
-      await vectorStore.addDocuments(searchableDocuments);
+      // await vectorStore.addDocuments(searchableDocuments);
       console.log(`Ingested ${searchableDocuments.length} employee docs`);
     }
   } catch (error) {
