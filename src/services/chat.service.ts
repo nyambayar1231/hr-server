@@ -208,7 +208,7 @@ export class ChatService {
     }
   }
 
-  private async analyzeQuery(state: typeof StateAnnotation.State) {
+  private analyzeQuery(state: typeof StateAnnotation.State) {
     const lowerQuestion = state.question.toLowerCase().trim();
 
     // Add the new user message into conversation history
@@ -233,7 +233,12 @@ export class ChatService {
 
     let actionType: 'askEmailPermission' | 'sendEmail' | 'none' = 'none';
 
-    if (lowerQuestion.includes('tsagiin burtgel')) {
+    if (
+      lowerQuestion.includes('tsagiin burtgel') ||
+      lowerQuestion.includes('tsag burtgel') ||
+      lowerQuestion.includes('цаг бүртгэл') ||
+      lowerQuestion.includes('цагийн бүртгэл')
+    ) {
       actionType = 'askEmailPermission';
     } else if (
       (askedPermissionRecently &&
@@ -274,8 +279,6 @@ export class ChatService {
 
     const config = { configurable: { thread_id: sessionId } };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const result = await this.graph.invoke(
       { question, userEmail, conversationId: sessionId },
