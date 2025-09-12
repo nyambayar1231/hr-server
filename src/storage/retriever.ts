@@ -5,9 +5,10 @@ import { InMemoryStore } from '@langchain/core/stores';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { ParentDocumentRetriever } from 'langchain/retrievers/parent_document';
 import { createVectorStoreInstance } from '../utils/vector-store-utils';
+
 const STORE_FILE_PATH = path.join(
-  __dirname,
-  '../../src/data/parent_documents.json',
+  process.cwd(),
+  'src/data/parent_documents.json',
 );
 
 const byteStore = new InMemoryStore<Uint8Array>();
