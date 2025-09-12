@@ -554,6 +554,8 @@ export class ChatService {
         ),
       );
 
+      console.log(JSON.stringify(getMessagesResponse.data), null, 2);
+
       const messages = getMessagesResponse.data.activities.map((activity) => ({
         timestamp: activity.timestamp,
         content: activity.text,

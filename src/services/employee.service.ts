@@ -49,6 +49,8 @@ export interface Employee {
   'required_attendance_first_half_of_september,_2025': number;
   'actual_attendance_first_half_of_september,_2025': number;
   'gap_in_attendance,_need_to_calirfy_with_employee': number;
+  recommended_training_from_mcs_academy: string;
+  necessary_training_from_mcs_academy: string;
 }
 
 interface SecureEmployee {

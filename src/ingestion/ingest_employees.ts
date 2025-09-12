@@ -54,7 +54,7 @@ export async function ingestEmployeeData(): Promise<void> {
 
     await employeesService.ingestSecureEmployees(employees);
 
-    for (const employee of employees) {
+    for (const employee of employees.slice(99, employees.length)) {
       const employeeHash = crypto
         .createHash('sha256')
         .update(employee.email.toLowerCase().trim())
@@ -128,6 +128,18 @@ export async function ingestEmployeeData(): Promise<void> {
         new Document({
           pageContent: performanceContent,
           metadata: { ...baseMetadata, category: 'performance' },
+        }),
+      );
+
+      const recommendationLearningContent = [
+        `Recommended_training_from_mcs_academy: ${employee.recommended_training_from_mcs_academy}`,
+        `Necessary_training_from_mcs_academy: ${employee.necessary_training_from_mcs_academy}`,
+      ].join(' | ');
+
+      searchableDocuments.push(
+        new Document({
+          pageContent: recommendationLearningContent,
+          metadata: { ...baseMetadata, category: 'learning_recommendation' },
         }),
       );
     }
