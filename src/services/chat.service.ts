@@ -220,6 +220,14 @@ export class ChatService {
       conversationId: state.conversationId,
     };
 
+    // const askedOwnHourRecently = (state.messages ?? []).slice(-1).some((m) => {
+    //   return (
+    //     m.role === 'system' &&
+    //     typeof m.content === 'string' &&
+    //     m.content.includes('та ирцийн хүсэлт илгээх үү?')
+    //   );
+    // });
+
     // Check if we recently asked for permission
     const askedPermissionRecently = (state.messages ?? [])
       .slice(-1)
@@ -227,11 +235,23 @@ export class ChatService {
         return (
           m.role === 'system' &&
           typeof m.content === 'string' &&
-          m.content.includes('Та дээрх ажилчид руу сануулах мэйл илгээх үү?')
+          m.content.includes('та дээрх ажилчид руу сануулах мэйл илгээх үү?')
         );
       });
 
-    let actionType: 'askEmailPermission' | 'sendEmail' | 'none' = 'none';
+    let actionType: 'askEmailPermission' | 'askOwnHour' | 'sendEmail' | 'none' =
+      'none';
+
+    // if (
+    //   lowerQuestion.includes('миний дутуу цаг?') ||
+    //   lowerQuestion.includes('дутуу цаг?') ||
+    //   lowerQuestion.includes('dutuu tsag') ||
+    //   lowerQuestion.includes('minii tsag')
+    // ) {
+    //   actionType = 'askOwnHour';
+    // } else if (askedOwnHourRecently) {
+    //   actionType = 'askOwnHour';
+    // }
 
     if (
       lowerQuestion.includes('tsagiin burtgel') ||
