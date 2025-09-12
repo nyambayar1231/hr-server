@@ -62,7 +62,12 @@ const StateAnnotation = Annotation.Root({
 
   // Action tracking
   actionType: Annotation<
-    'askEmailPermission' | 'sendEmail' | 'askEmployee' | 'none'
+    | 'askEmailPermission'
+    | 'sendEmail'
+    | 'askEmployee'
+    | 'employeeAskHour'
+    | 'employeeSendRequest'
+    | 'none'
   >(),
 });
 
@@ -105,6 +110,8 @@ export class ChatService {
       .addNode('generate', this.generate.bind(this))
       .addNode('askEmailPermission', this.askEmailPermission.bind(this))
       .addNode('askEmployee', this.askEmployee.bind(this))
+      .addNode('employeeAskHour', this.employeeAskHour.bind(this))
+      .addNode('employeeSendRequest', this.employeeSendRequest.bind(this))
 
       // Edges
       .addEdge('__start__', 'analyzeQuery')
@@ -115,6 +122,8 @@ export class ChatService {
       .addEdge('askEmailPermission', '__end__')
       .addEdge('sendEmail', '__end__')
       .addEdge('askEmployee', '__end__')
+      .addEdge('employeeAskHour', '__end__')
+      .addEdge('employeeSendRequest', '__end__')
 
       .addEdge('retrieve', 'generate')
       .addEdge('generate', '__end__')
@@ -128,7 +137,8 @@ export class ChatService {
   }
 
   private async askEmailPermission(state: typeof StateAnnotation.State) {
-    const powerAutomateUrl = process.env.POWER_AUTOMATE_WEBHOOK_URL!;
+    const powerAutomateUrl =
+      'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/8e72b9efbf5743fdb62aab6bc6fa298f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=nOp9d0xtlyxefPYnN9gcG_Qqtg1hFYl0k3n6i945MfQ';
 
     let content = '';
     let contentType: 'text' | 'table' = 'text';
@@ -176,22 +186,147 @@ export class ChatService {
     };
   }
 
-  private sendEmail(state: typeof StateAnnotation.State) {
-    const answer = 'sent email successfully';
+  private async sendEmail(state: typeof StateAnnotation.State) {
+    const powerAutomateUrl =
+      'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/3a4f0fbb44e34d95814b94fb64043936/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QRTRsrFqj18puHwb6TIiVehvLuEjAbmv1c3G-iuoGGM';
 
-    // Add system message about email being sent
-    const newMessage: ChatMessage = {
+    let content = '';
+    const data: Record<string, any>[] = [];
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          powerAutomateUrl,
+          { email: state.userEmail },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      // Extract data from the response
+      const responseData = response.data as Record<string, any>[];
+
+      console.log({ responseData });
+
+      content = 'Амжилттай мэдэгдэл илгээлээ';
+    } catch (error) {
+      console.error(error);
+      content = 'Алдаа гарлаа';
+    }
+
+    // Add the new user message into conversation history
+    const AiMessage: ChatMessage = {
       role: 'system',
-      content: answer,
+      content,
+      conversationId: state.conversationId,
       timestamp: new Date(),
       contentType: 'text',
-      conversationId: state.conversationId,
+      data,
     };
 
     return {
-      answer,
-      messages: [newMessage],
-      lastActivity: new Date(),
+      messages: [AiMessage],
+    };
+  }
+
+  async employeeAskHour(state: typeof StateAnnotation.State) {
+    const powerAutomateUrl =
+      'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/19fd4163f64e46949d675c86625b022a/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=te7a11M99Bllcv-HKryz3O5zWSaddWa0lHKdJywLWLQ';
+
+    let content = '';
+    let contentType: 'text' | 'table' = 'text';
+    let data: Record<string, any>[] = [];
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          powerAutomateUrl,
+          { email: state.userEmail },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      // Extract data from the response
+      const responseData = response.data as Record<string, any>[];
+
+      console.log({ responseData });
+
+      contentType = 'table';
+      content = 'Та цагийн хүсэлт илгээх үү?';
+      data = responseData;
+    } catch (error) {
+      console.error(error);
+      content = 'Алдаа гарлаа';
+      contentType = 'text';
+    }
+
+    // Add the new user message into conversation history
+    const AiMessage: ChatMessage = {
+      role: 'system',
+      content,
+      conversationId: state.conversationId,
+      timestamp: new Date(),
+      contentType,
+      data,
+    };
+
+    return {
+      messages: [AiMessage],
+    };
+  }
+  async employeeSendRequest(state: typeof StateAnnotation.State) {
+    const powerAutomateUrl =
+      'https://default1041f094871f4fabae5817ae6f66df.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/5a6eb85df83e4f4b8053fc8f5273e4a1/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-NMdthtBccJxgsLXNOmVvAfqzp1zWBgT8mmYGdnEQmM';
+
+    let content = '';
+    const data: Record<string, any>[] = [];
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          powerAutomateUrl,
+          { ID: 2 },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          },
+        ),
+      );
+
+      // Extract data from the response
+      const responseData = response.data as Record<string, any>[];
+
+      console.log({ responseData });
+
+      content = 'Цагийн хүсэлт амжилттай илгээлээ';
+    } catch (error) {
+      console.error(error);
+      content = 'Алдаа гарлаа';
+    }
+
+    // Add the new user message into conversation history
+    const AiMessage: ChatMessage = {
+      role: 'system',
+      content,
+      conversationId: state.conversationId,
+      timestamp: new Date(),
+      contentType: 'text',
+      data,
+    };
+
+    return {
+      messages: [AiMessage],
     };
   }
 
@@ -203,6 +338,10 @@ export class ChatService {
         return 'sendEmail';
       case 'askEmployee':
         return 'askEmployee';
+      case 'employeeAskHour':
+        return 'employeeAskHour';
+      case 'employeeSendRequest':
+        return 'employeeSendRequest';
       default:
         return 'retrieve';
     }
@@ -220,38 +359,54 @@ export class ChatService {
       conversationId: state.conversationId,
     };
 
-    // const askedOwnHourRecently = (state.messages ?? []).slice(-1).some((m) => {
-    //   return (
-    //     m.role === 'system' &&
-    //     typeof m.content === 'string' &&
-    //     m.content.includes('та ирцийн хүсэлт илгээх үү?')
-    //   );
-    // });
+    const employeeAskHourRecently = (state.messages ?? [])
+      .slice(-1)
+      .some((m) => {
+        const lowerContent = m.content.toLowerCase().trim();
+
+        return (
+          m.role === 'system' &&
+          typeof m.content === 'string' &&
+          lowerContent.includes('та цагийн хүсэлт илгээх үү?')
+        );
+      });
 
     // Check if we recently asked for permission
     const askedPermissionRecently = (state.messages ?? [])
       .slice(-1)
       .some((m) => {
+        const lowerContent = m.content.toLowerCase().trim();
         return (
           m.role === 'system' &&
           typeof m.content === 'string' &&
-          m.content.includes('та дээрх ажилчид руу сануулах мэйл илгээх үү?')
+          lowerContent.includes('та дээрх ажилчид руу сануулах мэйл илгээх үү?')
         );
       });
 
-    let actionType: 'askEmailPermission' | 'askOwnHour' | 'sendEmail' | 'none' =
-      'none';
+    let actionType:
+      | 'askEmailPermission'
+      | 'employeeAskHour'
+      | 'employeeSendRequest'
+      | 'sendEmail'
+      | 'sendRequest'
+      | 'none' = 'none';
 
-    // if (
-    //   lowerQuestion.includes('миний дутуу цаг?') ||
-    //   lowerQuestion.includes('дутуу цаг?') ||
-    //   lowerQuestion.includes('dutuu tsag') ||
-    //   lowerQuestion.includes('minii tsag')
-    // ) {
-    //   actionType = 'askOwnHour';
-    // } else if (askedOwnHourRecently) {
-    //   actionType = 'askOwnHour';
-    // }
+    if (
+      lowerQuestion.includes('миний дутуу цаг') ||
+      lowerQuestion.includes('дутуу цаг?') ||
+      lowerQuestion.includes('dutuu tsag') ||
+      lowerQuestion.includes('minii tsag')
+    ) {
+      actionType = 'employeeAskHour';
+    } else if (
+      (employeeAskHourRecently && lowerQuestion.includes('yes')) ||
+      lowerQuestion.includes('тийм') ||
+      lowerQuestion.includes('за') ||
+      lowerQuestion.includes('тэгий') ||
+      lowerQuestion.includes('tegii')
+    ) {
+      actionType = 'employeeSendRequest';
+    }
 
     if (
       lowerQuestion.includes('tsagiin burtgel') ||

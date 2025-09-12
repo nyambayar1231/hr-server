@@ -8,7 +8,7 @@ import { createVectorStoreInstance } from '../utils/vector-store-utils';
 
 const STORE_FILE_PATH = path.join(
   process.cwd(),
-  'src/data/parent_documents.json',
+  'src/data/parent_documents2.json',
 );
 
 const byteStore = new InMemoryStore<Uint8Array>();
